@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_deb_tgz:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14 cmake pkg-config libmodbus-dev
+          sudo apt-get install -y g++-14 cmake pkg-config libmodbus-dev dpkg-dev
 
       - name: Configure (Release)
         env:
@@ -29,39 +29,78 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      - name: Stage package contents
+      - name: Create packages (CPack)
         run: |
           set -euo pipefail
-          mkdir -p stage/lib stage/include
-          find build -type f \( -name '*.a' -o -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) -exec cp {} stage/lib/ \;
-          cp -r include/. stage/include/
+          cmake --build build --target package --parallel
+          mkdir -p package-artifacts
+          find build -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.deb' \) -exec cp {} package-artifacts/ \;
 
-      - name: Upload staged artifact
+      - name: Upload DEB/TGZ artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libmodbus-cpp-staging
-          path: stage/
+          name: libmodbus-cpp-packages-deb-tgz
+          path: package-artifacts/
+
+  build_rpm:
+    runs-on: ubuntu-24.04
+    container: fedora:41
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf -y install git gcc gcc-c++ cmake make pkgconf-pkg-config rpm-build autoconf automake libtool libmodbus-devel
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Release)
+        env:
+          CXX: g++
+        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Create RPM package (CPack)
+        run: |
+          set -euo pipefail
+          cmake --build build --target package --parallel
+          mkdir -p package-artifacts
+          find build -maxdepth 1 -type f -name '*.rpm' -exec cp {} package-artifacts/ \;
+
+      - name: Upload RPM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmodbus-cpp-packages-rpm
+          path: package-artifacts/
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build_deb_tgz, build_rpm]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
-      - name: Download staged artifact
+      - name: Download DEB/TGZ artifacts
         uses: actions/download-artifact@v4
         with:
-          name: libmodbus-cpp-staging
-          path: package
+          name: libmodbus-cpp-packages-deb-tgz
+          path: package-artifacts
 
-      - name: Create release archive
-        run: |
-          set -euo pipefail
-          tar -czf libmodbus-cpp-${{ github.ref_name }}-linux-x86_64.tar.gz -C package .
+      - name: Download RPM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libmodbus-cpp-packages-rpm
+          path: package-artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: libmodbus-cpp-${{ github.ref_name }}-linux-x86_64.tar.gz
+          files: |
+            package-artifacts/*.tar.gz
+            package-artifacts/*.deb
+            package-artifacts/*.rpm
