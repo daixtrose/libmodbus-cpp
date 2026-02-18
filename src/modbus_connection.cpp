@@ -9,6 +9,8 @@
 
 namespace libmodbus_cpp
 {
+    inline namespace v1
+    {
     namespace
     {
         bool is_retryable_modbus_data_error(int error_code)
@@ -328,4 +330,5 @@ namespace libmodbus_cpp
         }
     }
 
+    } // namespace v1
 } // namespace libmodbus_cpp

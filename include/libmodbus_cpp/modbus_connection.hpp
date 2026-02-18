@@ -10,6 +10,8 @@ typedef struct _modbus modbus_t;
 
 namespace libmodbus_cpp
 {
+    inline namespace v1
+    {
 
     /**
      * @brief RAII wrapper for MODBUS TCP connection
@@ -184,4 +186,5 @@ namespace libmodbus_cpp
         std::string last_error_;
     };
 
+    } // namespace v1
 } // namespace libmodbus_cpp
