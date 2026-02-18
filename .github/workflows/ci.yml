@@ -1,13 +1,14 @@
-name: Release Build (g++-14)
+name: CI
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  build-release:
+  build:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -28,12 +29,3 @@ jobs:
 
       - name: Build
         run: cmake --build build --parallel
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: libmodbus-cpp-release
-          path: |
-            build/**/*.a
-            build/**/*.so
-            build/**/*.dylib

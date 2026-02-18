@@ -102,3 +102,15 @@ Then consumers can use:
 find_package(libmodbus_cpp CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE libmodbus_cpp::modbus_cpp)
 ```
+
+## CI/CD Workflows
+
+GitHub Actions workflows are split by purpose:
+
+- `ci.yml`
+	- Triggers on pushes to `main`, pull requests, and manual dispatch.
+	- Runs configure + build checks for regular development changes.
+
+- `release.yml`
+	- Triggers on version tags matching `v*` (for example `v1.0.0`) and manual dispatch.
+	- Builds once, stages artifacts, and publishes a GitHub Release archive.
