@@ -75,3 +75,30 @@ In controlled environments (for example CI images where tools are guaranteed), y
 ```bash
 cmake -S . -B build -DLIBMODBUS_SKIP_TOOL_CHECK=ON
 ```
+
+## Packaging
+
+Packaging support is enabled by default for top-level builds and can be controlled with:
+
+- `-DLIBMODBUS_CPP_ENABLE_INSTALL=ON|OFF`
+- `-DLIBMODBUS_CPP_ENABLE_CPACK=ON|OFF`
+
+Create packages (for example `TGZ`; on Linux also `DEB`, and `RPM` if `rpmbuild` is installed):
+
+```bash
+cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+cmake --build build --target package -j4
+```
+
+Install and export CMake package metadata for consumers:
+
+```bash
+cmake --install build --prefix /usr/local
+```
+
+Then consumers can use:
+
+```cmake
+find_package(libmodbus_cpp CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE libmodbus_cpp::modbus_cpp)
+```

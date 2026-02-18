@@ -1,4 +1,4 @@
-#include "caparoc/modbus_connection.hpp"
+#include "libmodbus_cpp/modbus_connection.hpp"
 #include <modbus/modbus.h>
 #include <cstring>
 #include <utility>
@@ -7,7 +7,7 @@
 #include <cerrno>
 #include <sys/socket.h>
 
-namespace caparoc
+namespace libmodbus_cpp
 {
     namespace
     {
@@ -328,4 +328,4 @@ namespace caparoc
         }
     }
 
-} // namespace caparoc
+} // namespace libmodbus_cpp

@@ -10,13 +10,22 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 option(LIBMODBUS_USE_SYSTEM "Use installed libmodbus via pkg-config" OFF)
 option(LIBMODBUS_SKIP_TOOL_CHECK "Skip checking autotools prerequisites for libmodbus FetchContent build" OFF)
+option(LIBMODBUS_CPP_ENABLE_INSTALL "Enable install and CMake package export rules" ON)
+option(LIBMODBUS_CPP_ENABLE_CPACK "Enable CPack packaging support" ${PROJECT_IS_TOP_LEVEL})
 
 if(LIBMODBUS_USE_SYSTEM)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBMODBUS REQUIRED IMPORTED_TARGET libmodbus)
-    set(LIBMODBUS_TARGET PkgConfig::LIBMODBUS)
+    if(NOT TARGET libmodbus::libmodbus)
+        add_library(libmodbus::libmodbus INTERFACE IMPORTED)
+        target_link_libraries(libmodbus::libmodbus INTERFACE PkgConfig::LIBMODBUS)
+    endif()
+    set(LIBMODBUS_TARGET libmodbus::libmodbus)
 else()
     include(FetchContent)
     include(ExternalProject)
@@ -107,4 +116,77 @@ elseif(MSVC)
     target_compile_options(modbus_cpp PRIVATE
         /W4
     )
+endif()
+
+if(LIBMODBUS_CPP_ENABLE_INSTALL)
+    set(LIBMODBUS_CPP_CONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/libmodbus_cpp)
+
+    install(
+        TARGETS modbus_cpp
+        EXPORT libmodbus_cppTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    install(
+        DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    install(
+        EXPORT libmodbus_cppTargets
+        NAMESPACE libmodbus_cpp::
+        DESTINATION ${LIBMODBUS_CPP_CONFIG_INSTALL_DIR}
+        FILE libmodbus_cppTargets.cmake
+    )
+
+    configure_package_config_file(
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/libmodbus_cppConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/libmodbus_cppConfig.cmake
+        INSTALL_DESTINATION ${LIBMODBUS_CPP_CONFIG_INSTALL_DIR}
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/libmodbus_cppConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(
+        FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/libmodbus_cppConfig.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/libmodbus_cppConfigVersion.cmake
+        DESTINATION ${LIBMODBUS_CPP_CONFIG_INSTALL_DIR}
+    )
+endif()
+
+if(LIBMODBUS_CPP_ENABLE_CPACK)
+    set(CPACK_PACKAGE_NAME libmodbus-cpp)
+    set(CPACK_PACKAGE_VENDOR "libmodbus_cpp")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Modern C++23 wrapper for libmodbus")
+    set(CPACK_PACKAGE_CONTACT "")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Markus Werle")
+    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+
+    if(WIN32)
+        set(CPACK_GENERATOR ZIP)
+    elseif(APPLE)
+        set(CPACK_GENERATOR TGZ)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(CPACK_GENERATOR TGZ DEB)
+        set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS TRUE)
+
+        find_program(RPMBUILD_EXECUTABLE rpmbuild)
+        if(RPMBUILD_EXECUTABLE)
+            list(APPEND CPACK_GENERATOR RPM)
+        else()
+            message(STATUS "rpmbuild not found: RPM package generation disabled")
+        endif()
+    else()
+        set(CPACK_GENERATOR TGZ)
+    endif()
+
+    include(CPack)
 endif()
