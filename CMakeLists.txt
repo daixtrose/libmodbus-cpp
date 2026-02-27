@@ -79,7 +79,7 @@ else()
     add_library(libmodbus::libmodbus SHARED IMPORTED GLOBAL)
     set_target_properties(libmodbus::libmodbus PROPERTIES
         IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
-        INTERFACE_INCLUDE_DIRECTORIES ${LIBMODBUS_INSTALL_PREFIX}/include/modbus
+        INTERFACE_INCLUDE_DIRECTORIES ${LIBMODBUS_INSTALL_PREFIX}/include
     )
 
     add_dependencies(libmodbus::libmodbus libmodbus_external)
