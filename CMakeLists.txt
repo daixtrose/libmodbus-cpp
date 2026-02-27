@@ -188,6 +188,11 @@ if(LIBMODBUS_CPP_ENABLE_CPACK)
     set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
     set(CPACK_RPM_PACKAGE_RELEASE "1")
 
+    # Override RPM strip command for cross-compilation
+    if(NOT "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+        set(CPACK_RPM_SPEC_MORE_DEFINE "%define __strip ${CMAKE_STRIP}")
+    endif()
+
     if(WIN32)
         set(CPACK_GENERATOR ZIP)
     elseif(APPLE)
