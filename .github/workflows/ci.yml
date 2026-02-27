@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14 pkg-config autoconf automake libtool make gcc
+          sudo apt-get install -y g++-14 pkg-config autoconf automake libtool make gcc dpkg-dev rpm
 
       - name: Configure
         env:
