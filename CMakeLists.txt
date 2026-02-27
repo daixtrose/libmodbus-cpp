@@ -27,7 +27,6 @@ if(LIBMODBUS_USE_SYSTEM)
     endif()
     set(LIBMODBUS_TARGET libmodbus::libmodbus)
 else()
-    include(FetchContent)
     include(ExternalProject)
 
     find_program(AUTORECONF_EXECUTABLE autoreconf)
@@ -35,7 +34,7 @@ else()
 
     if(NOT LIBMODBUS_SKIP_TOOL_CHECK AND (NOT AUTORECONF_EXECUTABLE OR NOT MAKE_EXECUTABLE))
         message(FATAL_ERROR
-            "Building libmodbus from git via FetchContent requires autotools prerequisites.\n"
+            "Building libmodbus from git via ExternalProject requires autotools prerequisites.\n"
             "Missing tools:\n"
             "  autoreconf: ${AUTORECONF_EXECUTABLE}\n"
             "  make: ${MAKE_EXECUTABLE}\n\n"
@@ -54,19 +53,10 @@ else()
     file(MAKE_DIRECTORY ${LIBMODBUS_INSTALL_PREFIX}/include/modbus)
     file(MAKE_DIRECTORY ${LIBMODBUS_INSTALL_PREFIX}/lib)
 
-    FetchContent_Declare(libmodbus
-        GIT_REPOSITORY https://github.com/stephane/libmodbus.git
-        GIT_TAG ${LIBMODBUS_GIT_TAG}
-        GIT_SHALLOW TRUE
-    )
-
-    FetchContent_GetProperties(libmodbus)
-    if(NOT libmodbus_POPULATED)
-        FetchContent_Populate(libmodbus)
-    endif()
-
     ExternalProject_Add(libmodbus_external
-        SOURCE_DIR ${libmodbus_SOURCE_DIR}
+        GIT_REPOSITORY  https://github.com/stephane/libmodbus.git
+        GIT_TAG         ${LIBMODBUS_GIT_TAG}
+        GIT_SHALLOW     TRUE
         BUILD_IN_SOURCE 1
         CONFIGURE_COMMAND ./autogen.sh
         COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX}
