@@ -65,8 +65,10 @@ else()
 
     # Build the autotools project at build time via ExternalProject.
     # When cross-compiling, pass --host and CC to autotools configure.
+    # Note: CMAKE_CROSSCOMPILING may be FALSE for Linux-to-Linux cross-compilation
+    # (same OS name, different architecture), so also compare processor types.
     set(_LIBMODBUS_CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX})
-    if(CMAKE_CROSSCOMPILING)
+    if(CMAKE_CROSSCOMPILING OR NOT "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}")
         # Derive the GNU triplet from the C compiler name (e.g. aarch64-linux-gnu-gcc-14 → aarch64-linux-gnu)
         get_filename_component(_cc_name ${CMAKE_C_COMPILER} NAME)
         string(REGEX REPLACE "-gcc.*$" "" _cross_triplet "${_cc_name}")
