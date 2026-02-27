@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25...4.2)
 
 project(libmodbus-cpp
-    VERSION 1.1.0
+    VERSION 1.1.1
     DESCRIPTION "Modern C++23 wrapper for libmodbus"
     LANGUAGES CXX
 )
