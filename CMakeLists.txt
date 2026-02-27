@@ -27,6 +27,7 @@ if(LIBMODBUS_USE_SYSTEM)
     endif()
     set(LIBMODBUS_TARGET libmodbus::libmodbus)
 else()
+    include(FetchContent)
     include(ExternalProject)
 
     find_program(AUTORECONF_EXECUTABLE autoreconf)
@@ -34,7 +35,7 @@ else()
 
     if(NOT LIBMODBUS_SKIP_TOOL_CHECK AND (NOT AUTORECONF_EXECUTABLE OR NOT MAKE_EXECUTABLE))
         message(FATAL_ERROR
-            "Building libmodbus from git via ExternalProject requires autotools prerequisites.\n"
+            "Building libmodbus from source requires autotools prerequisites.\n"
             "Missing tools:\n"
             "  autoreconf: ${AUTORECONF_EXECUTABLE}\n"
             "  make: ${MAKE_EXECUTABLE}\n\n"
@@ -53,16 +54,24 @@ else()
     file(MAKE_DIRECTORY ${LIBMODBUS_INSTALL_PREFIX}/include/modbus)
     file(MAKE_DIRECTORY ${LIBMODBUS_INSTALL_PREFIX}/lib)
 
+    # Download at configure time via FetchContent (no CMakeLists.txt in
+    # libmodbus, so FetchContent_MakeAvailable just populates the source tree).
+    FetchContent_Declare(libmodbus
+        GIT_REPOSITORY https://github.com/stephane/libmodbus.git
+        GIT_TAG        ${LIBMODBUS_GIT_TAG}
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(libmodbus)
+
+    # Build the autotools project at build time via ExternalProject.
     ExternalProject_Add(libmodbus_external
-        GIT_REPOSITORY  https://github.com/stephane/libmodbus.git
-        GIT_TAG         ${LIBMODBUS_GIT_TAG}
-        GIT_SHALLOW     TRUE
+        SOURCE_DIR      ${libmodbus_SOURCE_DIR}
         BUILD_IN_SOURCE 1
         CONFIGURE_COMMAND ./autogen.sh
         COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX}
-        BUILD_COMMAND make
-        INSTALL_COMMAND make install
-        UPDATE_COMMAND ""
+        BUILD_COMMAND     make
+        INSTALL_COMMAND   make install
+        UPDATE_COMMAND    ""
     )
 
     set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}modbus${CMAKE_SHARED_LIBRARY_SUFFIX})
