@@ -163,11 +163,17 @@ endif()
 
 if(LIBMODBUS_CPP_ENABLE_CPACK)
     set(CPACK_PACKAGE_NAME libmodbus-cpp)
-    set(CPACK_PACKAGE_VENDOR "libmodbus_cpp")
+    set(CPACK_PACKAGE_VENDOR "Markus Werle")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Modern C++23 wrapper for libmodbus")
-    set(CPACK_PACKAGE_CONTACT "")
+    set(CPACK_PACKAGE_CONTACT "daixtrose")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Markus Werle")
     set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+    set(CPACK_VERBATIM_VARIABLES YES)
+
+    # Standard naming with architecture: <pkg>_<ver>_<arch>.deb / <pkg>-<ver>-<rel>.<arch>.rpm
+    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+    set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+    set(CPACK_RPM_PACKAGE_RELEASE "1")
 
     if(WIN32)
         set(CPACK_GENERATOR ZIP)

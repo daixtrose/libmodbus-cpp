@@ -40,3 +40,8 @@ jobs:
 
       - name: Package
         run: cpack --preset linux-x86_64-release
+
+      - name: Verify packages
+        run: |
+          echo "=== Generated packages ==="
+          ls -la build/linux-x86_64-release/*.{deb,rpm,tar.gz} 2>/dev/null || true
