@@ -7,6 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  CMAKE_VERSION: "4.2.3"
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -17,15 +20,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install CMake ${{ env.CMAKE_VERSION }}
+        run: pip install cmake==${{ env.CMAKE_VERSION }}
+
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14 cmake pkg-config libmodbus-dev
+          sudo apt-get install -y g++-14 pkg-config libmodbus-dev
 
-      - name: Configure (Release)
+      - name: Configure
         env:
           CXX: g++-14
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+        run: cmake --preset linux-x86_64-release
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build --preset linux-x86_64-release --parallel
+
+      - name: Package
+        run: cpack --preset linux-x86_64-release

@@ -6,8 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  CMAKE_VERSION: "4.2.3"
+
 jobs:
-  build_deb_tgz:
+  build-linux-x86_64:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -15,92 +18,51 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install CMake ${{ env.CMAKE_VERSION }}
+        run: pip install cmake==${{ env.CMAKE_VERSION }}
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++-14 cmake pkg-config libmodbus-dev dpkg-dev
+          sudo apt-get install -y g++-14 pkg-config libmodbus-dev dpkg-dev
 
-      - name: Configure (Release)
+      - name: Configure
         env:
           CXX: g++-14
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+        run: cmake --preset linux-x86_64-release
 
       - name: Build
-        run: cmake --build build --parallel
+        run: cmake --build --preset linux-x86_64-release --parallel
 
-      - name: Create packages (CPack)
+      - name: Package
         run: |
-          set -euo pipefail
-          cmake --build build --target package --parallel
-          mkdir -p package-artifacts
-          find build -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.deb' \) -exec cp {} package-artifacts/ \;
+          cpack --preset linux-x86_64-release
+          mkdir -p artifacts
+          find build/linux-x86_64-release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.deb' \) -exec cp {} artifacts/ \;
 
-      - name: Upload DEB/TGZ artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: libmodbus-cpp-packages-deb-tgz
-          path: package-artifacts/
-
-  build_rpm:
-    runs-on: ubuntu-24.04
-    container: fedora:41
-    permissions:
-      contents: read
-
-    steps:
-      - name: Install dependencies
-        run: |
-          dnf -y install git gcc gcc-c++ cmake make pkgconf-pkg-config rpm-build autoconf automake libtool libmodbus-devel
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure (Release)
-        env:
-          CXX: g++
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Create RPM package (CPack)
-        run: |
-          set -euo pipefail
-          cmake --build build --target package --parallel
-          mkdir -p package-artifacts
-          find build -maxdepth 1 -type f -name '*.rpm' -exec cp {} package-artifacts/ \;
-
-      - name: Upload RPM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: libmodbus-cpp-packages-rpm
-          path: package-artifacts/
+          name: libmodbus-cpp-linux-x86_64
+          path: artifacts/
 
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build_deb_tgz, build_rpm]
+    needs: [build-linux-x86_64]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
 
     steps:
-      - name: Download DEB/TGZ artifacts
+      - name: Download Linux x86_64 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: libmodbus-cpp-packages-deb-tgz
-          path: package-artifacts
-
-      - name: Download RPM artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: libmodbus-cpp-packages-rpm
-          path: package-artifacts
+          name: libmodbus-cpp-linux-x86_64
+          path: artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            package-artifacts/*.tar.gz
-            package-artifacts/*.deb
-            package-artifacts/*.rpm
+            artifacts/*
