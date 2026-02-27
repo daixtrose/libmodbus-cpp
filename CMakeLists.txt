@@ -64,11 +64,22 @@ else()
     FetchContent_MakeAvailable(libmodbus)
 
     # Build the autotools project at build time via ExternalProject.
+    # When cross-compiling, pass --host and CC to autotools configure.
+    set(_LIBMODBUS_CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX})
+    if(CMAKE_CROSSCOMPILING)
+        # Derive the GNU triplet from the C compiler name (e.g. aarch64-linux-gnu-gcc-14 → aarch64-linux-gnu)
+        get_filename_component(_cc_name ${CMAKE_C_COMPILER} NAME)
+        string(REGEX REPLACE "-gcc.*$" "" _cross_triplet "${_cc_name}")
+        list(APPEND _LIBMODBUS_CONFIGURE_COMMAND
+            --host=${_cross_triplet}
+            "CC=${CMAKE_C_COMPILER}"
+        )
+    endif()
+
     ExternalProject_Add(libmodbus_external
         SOURCE_DIR      ${libmodbus_SOURCE_DIR}
         BUILD_IN_SOURCE 1
-        CONFIGURE_COMMAND ./autogen.sh
-        COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX}
+        CONFIGURE_COMMAND ${_LIBMODBUS_CONFIGURE_COMMAND}
         BUILD_COMMAND     make
         INSTALL_COMMAND   make install
         UPDATE_COMMAND    ""

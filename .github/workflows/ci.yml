@@ -11,7 +11,7 @@ env:
   CMAKE_VERSION: "4.2.3"
 
 jobs:
-  build:
+  build-linux-x86_64:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -45,3 +45,38 @@ jobs:
         run: |
           echo "=== Generated packages ==="
           ls -la build/linux-x86_64-release/*.{deb,rpm,tar.gz} 2>/dev/null || true
+
+  build-linux-aarch64:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install CMake ${{ env.CMAKE_VERSION }}
+        run: |
+          wget -qO- https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}-linux-x86_64.tar.gz | tar xz
+          echo "$PWD/cmake-${{ env.CMAKE_VERSION }}-linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-14-aarch64-linux-gnu gcc-14-aarch64-linux-gnu pkg-config autoconf automake libtool make gcc dpkg-dev rpm
+
+      - name: Configure
+        run: cmake --preset linux-aarch64-release
+
+      - name: Build
+        run: cmake --build --preset linux-aarch64-release --parallel
+
+      - name: Package
+        run: cpack --preset linux-aarch64-release
+
+      - name: Verify packages
+        run: |
+          echo "=== Generated packages ==="
+          ls -la build/linux-aarch64-release/*.{deb,rpm,tar.gz} 2>/dev/null || true
+          echo "=== Verify arm64 architecture ==="
+          dpkg-deb --info build/linux-aarch64-release/*.deb | grep Architecture
