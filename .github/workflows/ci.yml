@@ -39,12 +39,21 @@ jobs:
         run: cmake --build --preset linux-x86_64-release --parallel
 
       - name: Package
-        run: cpack --preset linux-x86_64-release
+        run: |
+          cpack --preset linux-x86_64-release
+          mkdir -p artifacts
+          find build/linux-x86_64-release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} artifacts/ \;
 
       - name: Verify packages
         run: |
           echo "=== Generated packages ==="
-          ls -la build/linux-x86_64-release/*.{deb,rpm,tar.gz} 2>/dev/null || true
+          ls -la artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmodbus-cpp-linux-x86_64
+          path: artifacts/
 
   build-linux-aarch64:
     runs-on: ubuntu-24.04
@@ -72,11 +81,20 @@ jobs:
         run: cmake --build --preset linux-aarch64-release --parallel
 
       - name: Package
-        run: cpack --preset linux-aarch64-release
+        run: |
+          cpack --preset linux-aarch64-release
+          mkdir -p artifacts
+          find build/linux-aarch64-release -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.deb' -o -name '*.rpm' \) -exec cp {} artifacts/ \;
 
       - name: Verify packages
         run: |
           echo "=== Generated packages ==="
-          ls -la build/linux-aarch64-release/*.{deb,rpm,tar.gz} 2>/dev/null || true
+          ls -la artifacts/
           echo "=== Verify arm64 architecture ==="
           dpkg-deb --info build/linux-aarch64-release/*.deb | grep Architecture
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libmodbus-cpp-linux-aarch64
+          path: artifacts/
