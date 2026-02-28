@@ -44,7 +44,8 @@ else()
             "  Fedora/RHEL:   sudo dnf install -y autoconf automake libtool make gcc\n"
             "  Arch Linux:    sudo pacman -S --needed autoconf automake libtool make gcc\n"
             "  openSUSE:      sudo zypper install -y autoconf automake libtool make gcc\n"
-            "  Alpine:        sudo apk add autoconf automake libtool make gcc musl-dev"
+            "  Alpine:        sudo apk add autoconf automake libtool make gcc musl-dev\n"
+            "  MSYS2:         pacman -S autoconf automake libtool make gcc"
         )
     endif()
 
@@ -64,36 +65,59 @@ else()
     FetchContent_MakeAvailable(libmodbus)
 
     # Build the autotools project at build time via ExternalProject.
-    # When cross-compiling, pass --host and CC to autotools configure.
-    # Note: CMAKE_CROSSCOMPILING may be FALSE for Linux-to-Linux cross-compilation
-    # (same OS name, different architecture), so also compare processor types.
-    set(_LIBMODBUS_CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX})
-    if(CMAKE_CROSSCOMPILING OR NOT "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}")
-        # Derive the GNU triplet from the C compiler name (e.g. aarch64-linux-gnu-gcc-14 → aarch64-linux-gnu)
-        get_filename_component(_cc_name ${CMAKE_C_COMPILER} NAME)
-        string(REGEX REPLACE "-gcc.*$" "" _cross_triplet "${_cc_name}")
-        list(APPEND _LIBMODBUS_CONFIGURE_COMMAND
-            --host=${_cross_triplet}
-            "CC=${CMAKE_C_COMPILER}"
+    # On Windows (MSYS2): build as static library, wrap commands with bash.
+    # On Linux: build as shared library. When cross-compiling, pass --host and CC.
+    if(WIN32)
+        find_program(BASH_EXECUTABLE bash REQUIRED)
+        set(_LIBMODBUS_CONFIGURE_COMMAND
+            ${BASH_EXECUTABLE} -c "./autogen.sh && ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX} --enable-static --disable-shared"
         )
+        set(_LIBMODBUS_BUILD_COMMAND ${BASH_EXECUTABLE} -c "make")
+        set(_LIBMODBUS_INSTALL_COMMAND ${BASH_EXECUTABLE} -c "make install")
+    else()
+        set(_LIBMODBUS_CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX})
+        # Note: CMAKE_CROSSCOMPILING may be FALSE for Linux-to-Linux cross-compilation
+        # (same OS name, different architecture), so also compare processor types.
+        if(CMAKE_CROSSCOMPILING OR NOT "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+            # Derive the GNU triplet from the C compiler name (e.g. aarch64-linux-gnu-gcc-14 → aarch64-linux-gnu)
+            get_filename_component(_cc_name ${CMAKE_C_COMPILER} NAME)
+            string(REGEX REPLACE "-gcc.*$" "" _cross_triplet "${_cc_name}")
+            list(APPEND _LIBMODBUS_CONFIGURE_COMMAND
+                --host=${_cross_triplet}
+                "CC=${CMAKE_C_COMPILER}"
+            )
+        endif()
+        set(_LIBMODBUS_BUILD_COMMAND make)
+        set(_LIBMODBUS_INSTALL_COMMAND make install)
     endif()
 
     ExternalProject_Add(libmodbus_external
         SOURCE_DIR      ${libmodbus_SOURCE_DIR}
         BUILD_IN_SOURCE 1
         CONFIGURE_COMMAND ${_LIBMODBUS_CONFIGURE_COMMAND}
-        BUILD_COMMAND     make
-        INSTALL_COMMAND   make install
+        BUILD_COMMAND     ${_LIBMODBUS_BUILD_COMMAND}
+        INSTALL_COMMAND   ${_LIBMODBUS_INSTALL_COMMAND}
         UPDATE_COMMAND    ""
     )
 
-    set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}modbus${CMAKE_SHARED_LIBRARY_SUFFIX})
-
-    add_library(libmodbus::libmodbus SHARED IMPORTED GLOBAL)
-    set_target_properties(libmodbus::libmodbus PROPERTIES
-        IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
-        INTERFACE_INCLUDE_DIRECTORIES ${LIBMODBUS_INSTALL_PREFIX}/include
-    )
+    # On Windows, link libmodbus statically (no DLL management needed).
+    # On Linux/Unix, use the shared library.
+    if(WIN32)
+        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/libmodbus.a)
+        add_library(libmodbus::libmodbus STATIC IMPORTED GLOBAL)
+        set_target_properties(libmodbus::libmodbus PROPERTIES
+            IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
+            INTERFACE_INCLUDE_DIRECTORIES ${LIBMODBUS_INSTALL_PREFIX}/include
+            INTERFACE_LINK_LIBRARIES ws2_32
+        )
+    else()
+        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}modbus${CMAKE_SHARED_LIBRARY_SUFFIX})
+        add_library(libmodbus::libmodbus SHARED IMPORTED GLOBAL)
+        set_target_properties(libmodbus::libmodbus PROPERTIES
+            IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
+            INTERFACE_INCLUDE_DIRECTORIES ${LIBMODBUS_INSTALL_PREFIX}/include
+        )
+    endif()
 
     add_dependencies(libmodbus::libmodbus libmodbus_external)
     set(LIBMODBUS_TARGET libmodbus::libmodbus)
