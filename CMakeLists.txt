@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25...4.2)
 
 project(libmodbus-cpp
-    VERSION 1.3.0
+    VERSION 1.4.0
     DESCRIPTION "Modern C++23 wrapper for libmodbus"
     LANGUAGES CXX
 )
@@ -49,7 +49,7 @@ else()
         )
     endif()
 
-    set(LIBMODBUS_GIT_TAG v3.1.12)
+    set(LIBMODBUS_GIT_TAG master)
     set(LIBMODBUS_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/_deps/libmodbus-install)
 
     file(MAKE_DIRECTORY ${LIBMODBUS_INSTALL_PREFIX}/include/modbus)
@@ -65,15 +65,22 @@ else()
     FetchContent_MakeAvailable(libmodbus)
 
     # Build the autotools project at build time via ExternalProject.
-    # On Windows (MSYS2): build as static library, wrap commands with bash.
+    # On Windows (MSYS2): build as static library. autoreconf must be run
+    # BEFORE cmake --build (in a CI step) because ExternalProject runs commands
+    # via cmake -P / execute_process(), which creates processes in the
+    # Windows/MinGW context, not the MSYS2 context. This breaks aclocal's
+    # MSYS2 path resolution (progtest.m4 not found). By pre-running autoreconf
+    # in the MSYS2 shell, the generated configure script is ready for
+    # ExternalProject to use directly.
     # On Linux: build as shared library. When cross-compiling, pass --host and CC.
     if(WIN32)
-        find_program(BASH_EXECUTABLE bash REQUIRED)
+        # On Windows, ExternalProject only runs ./configure (not autogen.sh)
+        # because autoreconf must be pre-run in the MSYS2 shell CI step.
         set(_LIBMODBUS_CONFIGURE_COMMAND
-            ${BASH_EXECUTABLE} -c "./autogen.sh && ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX} --enable-static --disable-shared"
+            ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX} --enable-static --disable-shared
         )
-        set(_LIBMODBUS_BUILD_COMMAND ${BASH_EXECUTABLE} -c "make")
-        set(_LIBMODBUS_INSTALL_COMMAND ${BASH_EXECUTABLE} -c "make install")
+        set(_LIBMODBUS_BUILD_COMMAND make)
+        set(_LIBMODBUS_INSTALL_COMMAND make install)
     else()
         set(_LIBMODBUS_CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX})
         # Note: CMAKE_CROSSCOMPILING may be FALSE for Linux-to-Linux cross-compilation

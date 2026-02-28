@@ -3,9 +3,15 @@
 #include <cstring>
 #include <utility>
 #include <stdexcept>
-#include <unistd.h>
 #include <cerrno>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <windows.h>
+#else
+#include <unistd.h>
 #include <sys/socket.h>
+#endif
 
 namespace libmodbus_cpp
 {
@@ -30,6 +36,33 @@ namespace libmodbus_cpp
                 return;
             }
 
+#ifdef _WIN32
+            // Set socket to non-blocking mode for drain
+            unsigned long mode = 1;
+            ioctlsocket(socket_fd, FIONBIO, &mode);
+
+            char buffer[256];
+            while (true)
+            {
+                const int bytes_read = recv(socket_fd, buffer, sizeof(buffer), 0);
+                if (bytes_read > 0)
+                {
+                    continue;
+                }
+
+                if (bytes_read == 0)
+                {
+                    break;
+                }
+
+                // WSAEWOULDBLOCK means no more data available
+                break;
+            }
+
+            // Restore blocking mode
+            mode = 0;
+            ioctlsocket(socket_fd, FIONBIO, &mode);
+#else
             uint8_t buffer[256];
             while (true)
             {
@@ -51,6 +84,7 @@ namespace libmodbus_cpp
 
                 return;
             }
+#endif
         }
 
         template <typename Operation>
@@ -161,12 +195,20 @@ namespace libmodbus_cpp
             }
 
             int err = errno;
+#ifdef _WIN32
+            if (err == EWOULDBLOCK)
+#else
             if (err == EWOULDBLOCK || err == EAGAIN)
+#endif
             {
                 // Non-blocking operation, wait a bit and retry
                 if (attempt < max_retries - 1)
                 {
+#ifdef _WIN32
+                    Sleep(100);  // 100ms, try again
+#else
                     usleep(100000);  // 100ms, try again
+#endif
                     continue;
                 }
             }

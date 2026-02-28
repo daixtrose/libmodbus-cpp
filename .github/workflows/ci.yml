@@ -122,13 +122,28 @@ jobs:
             libtool
             make
             pkg-config
+            gettext
             git
+
+      - name: Verify autotools prerequisites
+        run: |
+          echo "=== Tool versions ==="
+          aclocal --version | head -1
+          autoreconf --version | head -1
+          echo "=== aclocal system acdir ==="
+          aclocal --print-ac-dir
+          ls /usr/share/aclocal/progtest.m4 && echo "progtest.m4: OK"
 
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
         run: cmake --preset windows-x86_64-release
+
+      - name: Prepare autotools
+        run: |
+          cd build/windows-x86_64-release/_deps/libmodbus-src
+          ./autogen.sh
 
       - name: Build
         run: cmake --build --preset windows-x86_64-release --parallel
