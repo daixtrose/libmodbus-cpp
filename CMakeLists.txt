@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25...4.2)
 
 project(libmodbus-cpp
-    VERSION 1.4.0
+    VERSION 1.5.0
     DESCRIPTION "Modern C++23 wrapper for libmodbus"
     LANGUAGES CXX
 )
@@ -76,8 +76,15 @@ else()
     if(WIN32)
         # On Windows, ExternalProject only runs ./configure (not autogen.sh)
         # because autoreconf must be pre-run in the MSYS2 shell CI step.
+        #
+        # CPPFLAGS: Override FD_SETSIZE (default 64 on Windows) to prevent
+        # libmodbus from rejecting valid socket handles. libmodbus checks
+        # `if (socket >= FD_SETSIZE) { errno = EINVAL; return -1; }` — a
+        # Linux-ism that is wrong on Windows where SOCKET handles are opaque
+        # kernel values, not small sequential file descriptors.
         set(_LIBMODBUS_CONFIGURE_COMMAND
             ./configure --prefix=${LIBMODBUS_INSTALL_PREFIX} --enable-static --disable-shared
+                "CPPFLAGS=-DFD_SETSIZE=4096"
         )
         set(_LIBMODBUS_BUILD_COMMAND make)
         set(_LIBMODBUS_INSTALL_COMMAND make install)
