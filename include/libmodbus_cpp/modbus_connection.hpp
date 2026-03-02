@@ -148,7 +148,27 @@ namespace libmodbus_cpp
          */
         bool write_coils(uint16_t address, uint16_t count, const uint8_t *values);
 
-        // Add to header
+        /**
+         * @brief Read a single discrete input (Modbus FC 02)
+         *
+         * @param address Discrete input address
+         * @param value Output value (true = active, false = inactive)
+         * @return true if read successful
+         * @return false if read failed
+         */
+        bool read_discrete_input(uint16_t address, bool &value);
+
+        /**
+         * @brief Read multiple discrete inputs (Modbus FC 02)
+         *
+         * @param address Starting discrete input address
+         * @param count Number of inputs to read
+         * @param values Output array (must be at least count elements)
+         * @return true if read successful
+         * @return false if read failed
+         */
+        bool read_discrete_inputs(uint16_t address, uint16_t count, uint8_t *values);
+
         /**
          * @brief Set the slave/unit ID for Modbus communication
          *

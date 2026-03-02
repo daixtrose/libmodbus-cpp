@@ -315,6 +315,40 @@ namespace libmodbus_cpp
                                              { return modbus_read_bits(ctx_, address, count, values); });
     }
 
+    bool ModbusConnection::read_discrete_input(uint16_t address, bool &value)
+    {
+        if (!connected_)
+        {
+            last_error_ = "Not connected";
+            return false;
+        }
+
+        uint8_t input_value = 0;
+        const bool success = execute_with_data_error_retry(ctx_, last_error_, "Read discrete input failed: ",
+                                                           [this, address, &input_value]()
+                                                           { return modbus_read_input_bits(ctx_, address, 1, &input_value); });
+        if (!success)
+        {
+            return false;
+        }
+
+        value = (input_value != 0);
+        return true;
+    }
+
+    bool ModbusConnection::read_discrete_inputs(uint16_t address, uint16_t count, uint8_t *values)
+    {
+        if (!connected_)
+        {
+            last_error_ = "Not connected";
+            return false;
+        }
+
+        return execute_with_data_error_retry(ctx_, last_error_, "Read discrete inputs failed: ",
+                                             [this, address, count, values]()
+                                             { return modbus_read_input_bits(ctx_, address, count, values); });
+    }
+
     bool ModbusConnection::write_coil(uint16_t address, bool state)
     {
         if (!connected_)
