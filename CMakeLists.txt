@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25...4.2)
 
 project(libmodbus-cpp
-    VERSION 1.6.0
+    VERSION 1.7.0
     DESCRIPTION "Modern C++23 wrapper for libmodbus"
     LANGUAGES CXX
 )
@@ -100,6 +100,14 @@ else()
                 --host=${_cross_triplet}
                 "CC=${CMAKE_C_COMPILER}"
             )
+            # Forward sysroot to autotools so libmodbus links against the
+            # target libc (e.g. Bookworm glibc 2.36) instead of the host's.
+            if(CMAKE_SYSROOT)
+                list(APPEND _LIBMODBUS_CONFIGURE_COMMAND
+                    "CFLAGS=--sysroot=${CMAKE_SYSROOT}"
+                    "LDFLAGS=--sysroot=${CMAKE_SYSROOT}"
+                )
+            endif()
         endif()
         set(_LIBMODBUS_BUILD_COMMAND make)
         set(_LIBMODBUS_INSTALL_COMMAND make install)
