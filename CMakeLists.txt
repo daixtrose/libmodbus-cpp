@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25...4.2)
 
 project(libmodbus-cpp
-    VERSION 1.7.1
+    VERSION 1.7.2
     DESCRIPTION "Modern C++23 wrapper for libmodbus"
     LANGUAGES CXX
 )
@@ -113,6 +113,18 @@ else()
         set(_LIBMODBUS_INSTALL_COMMAND make install)
     endif()
 
+    # Compute the imported library path BEFORE ExternalProject_Add so it
+    # can be declared as a BUILD_BYPRODUCT.  The Ninja generator (unlike
+    # Make) strictly requires this — without it, consumers that link
+    # against libmodbus::libmodbus's IMPORTED_LOCATION see
+    # "missing and no known rule to make it" at build time.  Static vs
+    # shared selection mirrors the original logic below.
+    if(WIN32)
+        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/libmodbus.a)
+    else()
+        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}modbus${CMAKE_SHARED_LIBRARY_SUFFIX})
+    endif()
+
     ExternalProject_Add(libmodbus_external
         SOURCE_DIR      ${libmodbus_SOURCE_DIR}
         BUILD_IN_SOURCE 1
@@ -120,12 +132,12 @@ else()
         BUILD_COMMAND     ${_LIBMODBUS_BUILD_COMMAND}
         INSTALL_COMMAND   ${_LIBMODBUS_INSTALL_COMMAND}
         UPDATE_COMMAND    ""
+        BUILD_BYPRODUCTS  ${LIBMODBUS_IMPORTED_LIBRARY}
     )
 
     # On Windows, link libmodbus statically (no DLL management needed).
     # On Linux/Unix, use the shared library.
     if(WIN32)
-        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/libmodbus.a)
         add_library(libmodbus::libmodbus STATIC IMPORTED GLOBAL)
         set_target_properties(libmodbus::libmodbus PROPERTIES
             IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
@@ -133,7 +145,6 @@ else()
             INTERFACE_LINK_LIBRARIES ws2_32
         )
     else()
-        set(LIBMODBUS_IMPORTED_LIBRARY ${LIBMODBUS_INSTALL_PREFIX}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}modbus${CMAKE_SHARED_LIBRARY_SUFFIX})
         add_library(libmodbus::libmodbus SHARED IMPORTED GLOBAL)
         set_target_properties(libmodbus::libmodbus PROPERTIES
             IMPORTED_LOCATION ${LIBMODBUS_IMPORTED_LIBRARY}
